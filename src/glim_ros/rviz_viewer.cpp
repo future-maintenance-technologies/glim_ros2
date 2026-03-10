@@ -4,6 +4,10 @@
 #include <spdlog/spdlog.h>
 #include <rclcpp/clock.hpp>
 
+// #include <pcl/io/pcd_io.h>
+// #include <pcl/point_types.h>
+// #include <pcl_conversions/pcl_conversions.h>
+
 #define GLIM_ROS2
 #include <gtsam_points/types/point_cloud_cpu.hpp>
 #include <glim/odometry/callbacks.hpp>
@@ -500,7 +504,7 @@ void RvizViewer::globalmap_on_update_submaps(const std::vector<SubMap::Ptr>& sub
     }
     last_globalmap_pub_time = now;
 
-    logger->warn("Publishing global map is computationally demanding and not recommended");
+    // logger->warn("Publishing global map is computationally demanding and not recommended");
 
     int total_num_points = 0;
     for (const auto& submap : this->submaps) {
@@ -513,15 +517,45 @@ void RvizViewer::globalmap_on_update_submaps(const std::vector<SubMap::Ptr>& sub
     merged->points_storage.resize(total_num_points);
     merged->points = merged->points_storage.data();
 
+    // Allocate storage for intensities
+    merged->intensities_storage.resize(total_num_points);
+    merged->intensities = merged->intensities_storage.data();
+
     int begin = 0;
     for (int i = 0; i < this->submaps.size(); i++) {
       const auto& submap = this->submaps[i];
       std::transform(submap->points, submap->points + submap->size(), merged->points + begin, [&](const Eigen::Vector4d& p) { return submap_poses[i] * p; });
+      
+      // Copy intensities if available
+      if (submap->intensities) {
+        std::copy(submap->intensities, submap->intensities + submap->size(), merged->intensities + begin);
+      }
+      
       begin += submap->size();
     }
 
     auto points_msg = frame_to_pointcloud2(map_frame_id, now.seconds(), *merged);
     map_pub->publish(*points_msg);
+
+    // // save to PCD rather than publishing to avoid the heavy computation of publishing a large point cloud
+    // pcl::PointCloud<pcl::PointXYZI> cloud;
+    // pcl::fromROSMsg(*points_msg, cloud);
+
+    // folder_path_ = "maps";
+    // file_prefix_ = "global_map_";
+
+    // std::stringstream ss;
+    // ss << folder_path_;
+    // if (!folder_path_.empty() && folder_path_.back() != '/') ss << '/';
+    // ss << file_prefix_ << points_msg->header.stamp.sec << "_" << points_msg->header.stamp.nanosec << ".pcd";
+    // std::string filename = ss.str();
+
+    // int res = pcl::io::savePCDFileBinaryCompressed(filename, cloud);
+    // if (res == 0) {
+    //     RCLCPP_INFO(this->get_logger(), "Saved PCD '%s' (%zu points)", filename.c_str(), cloud.size());
+    // } else {
+    //     RCLCPP_ERROR(this->get_logger(), "Failed to save PCD '%s' (error %d)", filename.c_str(), res);
+    // }  
   });
 }
 
