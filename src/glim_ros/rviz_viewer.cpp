@@ -499,7 +499,7 @@ void RvizViewer::globalmap_on_update_submaps(const std::vector<SubMap::Ptr>& sub
 
     // Publish global map every 10 seconds
     const rclcpp::Time now = rclcpp::Clock(rcl_clock_type_t::RCL_ROS_TIME).now();
-    if (now - last_globalmap_pub_time < std::chrono::seconds(10)) {
+    if (now - last_globalmap_pub_time < std::chrono::seconds(4)) {
       return;
     }
     last_globalmap_pub_time = now;
